@@ -209,15 +209,6 @@ class data:
         else:
             print "Spreadsheet containing age pyramids does not exist"
 
-        # load the activations times if required
-        # if not self.console['generate_activation_times']:
-        #     print "Loading the activation times previously saved..."
-        #     file_name = "pickled_activation_times.pickle"
-        #     file_stream = open(file_name, "rb")
-        #     self.activation_times_dic = dill.load(file_stream)
-        #     file_stream.close()
-        #     print "Complete."
-
         # read the contact calibration data by country
         sheet_path = path.join('country_data', 'age_preference', 'sd_agepref_work.xlsx')
         if path.isfile(sheet_path):
