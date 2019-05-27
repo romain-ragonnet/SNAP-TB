@@ -21,8 +21,7 @@ uncertainty_params = {'proba_infection_per_contact': {'distri': 'uniform', 'pars
                       'infectiousness_switching_age': {'distri': 'triangular', 'pars': (10., 20.)},
                       'g_child': {'distri': 'beta', 'pars': (73.27, 40.46)},
                       'g_teen': {'distri': 'beta', 'pars': (147., 34.84)},
-                      'g_adult': {'distri': 'beta', 'pars': (584.30, 28.53)},
-                      'tb_mortality_multiplier': {'distri': 'triangular', 'pars': (0.8, 1.2)}
+                      'g_adult': {'distri': 'beta', 'pars': (584.30, 28.53)}
                       }
 
 

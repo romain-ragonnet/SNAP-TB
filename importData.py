@@ -293,7 +293,7 @@ class data:
             self.scale_up_functions['treatment_success_prop'] = treatment_success_func
 
             def cdr_func(time):
-                return self.common_parameters['perc_cdr_smearpos'] / 100.
+                return self.common_parameters['perc_cdr'] / 100.
             self.scale_up_functions['cdr_prop'] = cdr_func
         else:
             datasets = {'bcg_coverage_prop': copy.deepcopy(self.data_from_sheets['bcg']), 'treatment_success_prop':
