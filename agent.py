@@ -123,6 +123,15 @@ class individual:
         # sigmoidal scale-up
         rr = 1. / (1. + exp(-(age - params['infectiousness_switching_age'])))
 
+        # alternate profile for infectiousness
+        if params['linear_scaleup_infectiousness']:
+            if age <= 10.:
+                rr = 0.
+            elif age >= 15:
+                rr = 1.
+            else:
+                rr = 0.2 * age - 2.
+
         # organ-manifestation
         if self.tb_organ == '_smearneg':
             rr *= params['rel_infectiousness_smearneg']
@@ -219,16 +228,30 @@ class individual:
         else:
             organ_for_natural_history = '_closed_tb'
 
-        t_to_sp_cure = round(365.25 * random.exponential(scale=1. / params['rate_self_cure' + organ_for_natural_history]))
-        t_to_tb_death = round(365.25 * random.exponential(scale=1. / params['rate_tb_mortality' + organ_for_natural_history]))
-        if t_to_sp_cure <= t_to_tb_death:
-             sp_cure = 1
-             t_s = t_to_sp_cure
-             t_m = float('inf')
+        if params['new_tbnh_parameters']:
+            t_to_sp_cure = round(365.25 * random.exponential(scale=1. / params['rate_sp_cure' +
+                                                                               organ_for_natural_history]))
+            t_to_tb_death = round(365.25 * random.exponential(scale=1. / params['rate_tb_mortality' +
+                                                                                organ_for_natural_history]))
+            if t_to_sp_cure <= t_to_tb_death:
+                sp_cure = 1
+                t_s = t_to_sp_cure
+                t_m = float('inf')
+            else:
+                sp_cure = 0
+                t_s = float('inf')
+                t_m = t_to_tb_death
         else:
-             sp_cure = 0
-             t_s = float('inf')
-             t_m = t_to_tb_death
+            sp_cure = random.binomial(n=1, p=params['perc_sp_cure' + organ_for_natural_history]/100.)
+            if sp_cure == 1:
+                t_s = round(365.25 * random.exponential(scale=1. / params['lambda_timeto_sp_or_death' +
+                                                                          organ_for_natural_history]))
+                t_m = float('inf')  # infinite
+            else:
+                t_s = float('inf')  # infinite
+                t_m = round(365.25 * random.exponential(scale=1. / (params['lambda_timeto_sp_or_death' +
+                                                                           organ_for_natural_history] *
+                                                                    params['tb_mortality_multiplier'])))
 
         # Random generation of programmatic durations
         [t_d, t_t] = random.exponential(scale=[365.25/params['lambda_timeto_detection' + organ_for_natural_history],
