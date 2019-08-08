@@ -183,8 +183,6 @@ class Model:
         self.process_reset_records_date()
         self.process_rr_transmission_by_location()
         self.pool_of_life_durations = data.pool_of_life_durations
-        if self.params['alternate_latency_params']:
-            self.adjust_latency_parameters()
 
     def collect_scenario_specific_params(self, data):
         # collect or rewrite scenario-specific parameters
@@ -193,8 +191,6 @@ class Model:
                 self.params[key] = value
         if 'time_step' in data.scenarios[self.scenario].keys() or 'n_years' in data.scenarios[self.scenario].keys():
             self.process_n_iterations()
-        if self.params['alternate_latency_params']:
-            self.adjust_latency_parameters()
 
     def process_n_iterations(self):
         """
@@ -230,34 +226,7 @@ class Model:
                 if target['year'] not in self.remaining_calibration_targets.keys():
                     self.remaining_calibration_targets[target['year']] = []
                 self.remaining_calibration_targets[target['year']].append(target)
-
-    def adjust_latency_parameters(self):
-        """
-        If an alternate latency parameterization is requested, the latency parameters are adjusted so that the
-        duration of early latency becomes 5 years. The early activation rates are adjusted so that the overall risk
-        of progression remains unchanged for each age group.
-        """
-        mu = 1/(self.params['life_expectancy']*365.25)
-        years_in_la = 5.
-        for age in ['_child', '_teen', '_adult']:
-            epsi = self.params['epsi' + age]
-            kappa = self.params['kappa' + age]
-            nu = self.params['nu' + age]
-
-            # calculate overall proportion progressing to active TB
-            num = epsi * (nu + mu) + kappa * nu
-            deno = (kappa + epsi + mu) * (nu + mu)
-            prop = num / deno
-
-            # adjust kappa and epsi parameters
-            new_kappa = 1. / (365.25 * years_in_la)
-            num = prop * (new_kappa + mu) * (nu + mu) - new_kappa * nu
-            deno = (1. - prop) * (nu + mu)
-            new_epsi = num / deno
-
-            self.params['epsi' + age] = new_epsi
-            self.params['kappa' + age] = new_kappa
-
+  
     def process_rr_transmission_by_location(self):
         self.params['rr_transmission_by_location'] = {}
         for location in self.contact_matrices['contact'].keys():
