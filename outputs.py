@@ -186,6 +186,7 @@ class output:
         else:
             scenarios = [scenario]
 
+
         extra_delay = 0.
         if series_name == 'tb_incidence' and self.model_runner.data.console[
             'duration_burning_tb'] == 0:  # we want to ignore the first years of tb_incidence
@@ -197,12 +198,17 @@ class output:
             x = self.model_runner.model_diagnostics[sc]['timeseries']['times'][0, ]
             x = self.convert_model_time_to_dates(x)
 
+            if i < len(self.scenario_colors):
+                sc_color = self.scenario_colors[i]
+            else:
+                sc_color = 'b'
+
             if ci:
                 y_low = data['low']
                 y_high = data['high']
                 y_mean = data['mean']
-                plt.fill_between(x, y_low, y_high, color=self.scenario_colors[i], alpha=0.3, linewidth=0.)
-            plt.plot(x, y_mean, color=self.scenario_colors[i], linewidth=2., label=sc_name)
+                plt.fill_between(x, y_low, y_high, color=sc_color, alpha=0.3, linewidth=0.)
+            plt.plot(x, y_mean, color=sc_color, linewidth=2., label=sc_name)
 
         x_max = math.ceil(x[-1] / 10.) * 10.
         plt.xlim((self.model_runner.data.console['start_plotting_time'], x_max))
@@ -714,8 +720,11 @@ def load_outputs(file_path):
     file_stream.close()
     # we must rebuild the data attribute of model_runner as it had been discarded for pickling purpose
     loaded_outputs.model_runner.data = imp.data(loaded_outputs.model_runner.country,
-                                                loaded_outputs.model_runner.calibration_params)
+                                                loaded_outputs.model_runner.calibration_params,
+                                                loaded_outputs.model_runner.uncertainty_params
+                                                )
 
+    #
     # prov = {None: {'proba_infection_per_contact': np.linspace(start=0.002, stop=0.0025, num=2)},
     #                     'India': {'proba_infection_per_contact': np.linspace(start=0.0020, stop=0.0026, num=4)},
     #                     'Indonesia': {'proba_infection_per_contact': np.linspace(start=0.0012, stop=0.0018, num=4)},
@@ -1733,16 +1742,20 @@ class multi_output:
 
 if __name__ == "__main__":
     #
-    # Out = load_outputs('outputs/lhs_test_5sets_China/pickled_outputs.pickle')
+    # Out = load_outputs('outputs/test_20K_pop_Indonesia/pickled_outputs.pickle')
     # Out.make_graphs()
+    # #
+    # exit()
 
     # ['India', 'Indonesia', 'China', 'Philippines', 'Pakistan']
 
     countries = ['India', 'Indonesia', 'China', 'Philippines', 'Pakistan']
-    MO = multi_output(countries=countries, project_name='analysis_14_05')
+    countries = ['Indonesia']
+    MO = multi_output(countries=countries, project_name='test_analysis_20K_pop')
     # MO.make_double_pyramids()
 
     MO.make_multi_graphs()
+    MO.make_country_graphs()  # check the folder path in local console spreadsheet
     MO.write_ltbi_prevalences()
 
     for country in countries:
