@@ -17,11 +17,18 @@ calibration_params = {None: {'proba_infection_per_contact': linspace(start=0.002
                         'Pakistan': {'proba_infection_per_contact': linspace(start=0.0016, stop=0.0016, num=1)}
                       }
 
-uncertainty_params = {'proba_infection_per_contact': {'distri': 'uniform', 'pars': (0.0015, 0.0030)},
+# for LHS calibration method:
+uncertainty_params = {'proba_infection_per_contact': {'distri': 'uniform', 'pars': (0.0030, 0.0045)},
                       'infectiousness_switching_age': {'distri': 'triangular', 'pars': (10., 20.)},
                       'g_child': {'distri': 'beta', 'pars': (73.27, 40.46)},
                       'g_teen': {'distri': 'beta', 'pars': (147., 34.84)},
-                      'g_adult': {'distri': 'beta', 'pars': (584.30, 28.53)}
+                      'g_adult': {'distri': 'beta', 'pars': (584.30, 28.53)},
+                      'rate_sp_cure_smearpos': {'distri': 'triangular', 'pars': (0.16, 0.31)},
+                      'rate_sp_cure_closed_tb': {'distri': 'triangular', 'pars': (0.05, 0.25)},
+                      'rate_tb_mortality_smearpos': {'distri': 'triangular', 'pars': (0.31, 0.47)},
+                      'rate_tb_mortality_closed_tb': {'distri': 'triangular', 'pars': (0.013, 0.039)},
+                      'time_to_treatment': {'distri': 'triangular', 'pars': (0., 14.)},
+                      'n_colleagues': {'distri': 'triangular', 'pars': (10., 30.)}
                       }
 
 
@@ -50,7 +57,7 @@ for country in country_list:
     m_r.clear_output_dir()
 
     parallel_processing = False
-    if m_r.data.console['n_runs'] * len(m_r.data.scenario_names) > 1 and os.name != 'nt':
+    if m_r.data.console['n_runs'] * len(m_r.data.scenario_names) * m_r.nb_seeds > 1 and os.name != 'nt':
         parallel_processing = True
 
     def run_a_single_simulation(run_indices):
@@ -73,11 +80,17 @@ for country in country_list:
         m.initialised = True
         m.run()
         print "__________________________ " + scenario + " seed " + str(seed_index) + " run " + str(i_run) + " successfully run"
-        m_dict = m.turn_model_into_dict()
-        return m_dict
+
+        if os.name != 'nt' and running_mode == 'run_lhs_calibration':
+            mo_dict = {}
+        else:
+            mo_dict = m.turn_model_into_dict()
+
+        del m
+        return mo_dict
 
     run_indices = []
-    nb_seeds = len(m_r.m_init)
+    nb_seeds = m_r.nb_seeds
     for seed_index in range(nb_seeds):
         for scenario in m_r.data.scenario_names:
             for i_run in range(m_r.data.console['n_runs']):
@@ -86,7 +99,7 @@ for country in country_list:
     if __name__ == '__main__':
 
         if parallel_processing:
-            p = Pool(processes=min(m_r.n_cpus, m_r.data.console['n_runs'] * len(m_r.data.scenario_names)))
+            p = Pool(processes=min(m_r.n_cpus, m_r.data.console['n_runs'] * len(m_r.data.scenario_names) * m_r.nb_seeds))
             output_models = p.map(func=run_a_single_simulation, iterable=run_indices)
         else:
             output_models = []
@@ -94,21 +107,28 @@ for country in country_list:
                 m_dict = run_a_single_simulation(indices)
                 output_models.append(m_dict)
 
-        for m_dict in output_models:
-            m_r.store_a_model_run(m_dict)
+        if os.name != 'nt' and running_mode == 'run_lhs_calibration':
+            print "No output created as not requested on remote machines"
+            del m_r
+            del output_models
+        else:
+            for m_dict in output_models:
+                m_r.store_a_model_run(m_dict)
 
-        m_r.aggregate_scenario_results()
+            m_r.aggregate_scenario_results()
 
-        print 'Simulation completed'
+            print 'Simulation completed'
 
-        O = outputs.output(m_r, last_i_figure)
-        O.make_graphs()
-        if os.name == 'nt':
-            # O.make_graphs()
-            O.write_timeseries_to_csv()
+            O = outputs.output(m_r, last_i_figure)
+            del m_r
+            del output_models
 
-        last_i_figure = O.i_figure
-        del O
+            if os.name == 'nt':
+                O.make_graphs()
+                O.write_timeseries_to_csv()
+
+            last_i_figure = O.i_figure
+            del O
 
 elapsed = time.time() - t_0
 print "The whole simulation took " + str(elapsed) + " seconds to complete."
