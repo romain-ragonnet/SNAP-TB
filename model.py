@@ -226,7 +226,7 @@ class Model:
                 if target['year'] not in self.remaining_calibration_targets.keys():
                     self.remaining_calibration_targets[target['year']] = []
                 self.remaining_calibration_targets[target['year']].append(target)
-  
+
     def process_rr_transmission_by_location(self):
         self.params['rr_transmission_by_location'] = {}
         for location in self.contact_matrices['contact'].keys():

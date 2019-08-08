@@ -250,8 +250,7 @@ class individual:
             else:
                 t_s = float('inf')  # infinite
                 t_m = round(365.25 * random.exponential(scale=1. / (params['lambda_timeto_sp_or_death' +
-                                                                           organ_for_natural_history] *
-                                                                    params['tb_mortality_multiplier'])))
+                                                                           organ_for_natural_history])))
 
         # Random generation of programmatic durations
         [t_d, t_t] = random.exponential(scale=[365.25/params['lambda_timeto_detection' + organ_for_natural_history],
