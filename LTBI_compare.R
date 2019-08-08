@@ -1,6 +1,6 @@
 # LTBI prevalence compare
-model_ltbi = list('India'=c(7.01,11.23,16.26), 'Pakistan'=c(6.08,9.94,14.60), 'Philippines'=c(26.53, 34.05, 41.44),
-             'China'=c(5.39, 10.33, 16.35), 'Indonesia'=c(18.61,26.03,34.39))
+model_ltbi = list('India'=c(13.60,25.27,35.90), 'Pakistan'=c(13.92, 24.52, 38.90), 'Philippines'=c(33.88,43.12,51.60),
+             'China'=c(17.62, 29.64, 41.18), 'Indonesia'=c(34.73,46.79,55.07))
 
 setwd('C:/Users/rrag0004/Models/SNAP_TB_BMC_MED/')
 
@@ -32,10 +32,6 @@ for (country in c('India', 'Indonesia', 'China', 'Philippines', 'Pakistan')){
   segments(x0=x+delta,x1=x+delta,y0=model_ltbi[[country]][1],y1=model_ltbi[[country]][3],lwd=2, col=col_snap)
   points(x=x+delta, y=model_ltbi[[country]][2], cex=1.5,pch=16, col=col_snap)
 
-  if (country == 'China'){
-    segments(x0=x,x1=x,y0=13,y1=20,lwd=2, col='black')
-  }
-    
   legend(x=3.5, y=90,legend = c('Houben & Dodd 2016', 'SNAP-TB model'),col = c(col_houb,col_snap),lty = 0,pch = 16,cex=1.3)  
 }
 
