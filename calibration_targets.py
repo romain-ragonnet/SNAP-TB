@@ -28,6 +28,15 @@ calib_targets = {
                  'data': (204., 143., 265.), 'category': ['_smearpos', 'more_than_15']},
                  {'indicator': 'tb_prevalence', 'year': 1930., 'min_accepted_value': 0., 'max_accepted_value': 3000.},
                  {'indicator': 'tb_prevalence', 'year': 1950., 'min_accepted_value': 30., 'max_accepted_value': 3000.}
+                ],
+    'Viet Nam': [{'indicator': 'tb_prevalence', 'year': 2007., 'min_accepted_value': 130., 'max_accepted_value': 260.,
+                 'data': (197., 150., 244.), 'category': ['_smearpos', 'more_than_15']},
+                 {'indicator': 'tb_prevalence', 'year': 1930., 'min_accepted_value': 0., 'max_accepted_value': 3000.},
+                 {'indicator': 'tb_prevalence', 'year': 1950., 'min_accepted_value': 30., 'max_accepted_value': 3000.}
+                ],
+    'Bhutan': [{'indicator': 'tb_prevalence', 'year': 2010., 'min_accepted_value': 250., 'max_accepted_value': 500.},
+                 {'indicator': 'tb_prevalence', 'year': 1930., 'min_accepted_value': 0., 'max_accepted_value': 3000.},
+                 {'indicator': 'tb_prevalence', 'year': 1950., 'min_accepted_value': 30., 'max_accepted_value': 3000.}
                 ]
 }
 
