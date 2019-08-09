@@ -7,6 +7,8 @@ import os
 from multiprocessing import Pool
 from numpy import random, linspace
 
+max_ncores = 12
+
 t_0 = time.time()
 last_i_figure = 0
 calibration_params = {None: {'proba_infection_per_contact': linspace(start=0.002, stop=0.0025, num=2)},
@@ -99,7 +101,8 @@ for country in country_list:
     if __name__ == '__main__':
 
         if parallel_processing:
-            p = Pool(processes=min(m_r.n_cpus, m_r.data.console['n_runs'] * len(m_r.data.scenario_names) * m_r.nb_seeds))
+            p = Pool(processes=min(m_r.n_cpus, m_r.data.console['n_runs'] * len(m_r.data.scenario_names) * m_r.nb_seeds,
+                     max_ncores))
             output_models = p.map(func=run_a_single_simulation, iterable=run_indices)
         else:
             output_models = []
