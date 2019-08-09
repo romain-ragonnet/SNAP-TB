@@ -721,9 +721,6 @@ class Model:
         Will make simulation stop if some conditions are verified
         """
         stop = False
-        if self.timeseries_log['tb_prevalence'][-1] >= self.params['prevalence_max']:
-            stop = True
-            print "Model run will be forced to stop because tb prevalence is too high."
         if self.tb_prevalence == 0 and len(self.programmed_events['activation'].values()) == 0 and self.time > 365.25*(
             self.params['duration_burning_demo'] + self.params['duration_burning_tb'] + 1.) and self.params['transmission']:
             stop = True
@@ -1842,7 +1839,7 @@ class TbModel(Model):
                 self.params['lambda_timeto_detection' + organ] = 1. / 1.e9 # some tiny value
             else:
                 self.params['lambda_timeto_detection' + organ] = \
-                    (cdr / (1. - cdr)) * (self.params['rate_self_cure' + organ] +
+                    (cdr / (1. - cdr)) * (self.params['rate_sp_cure' + organ] +
                                           self.params['rate_tb_mortality' + organ] +
                                           mu)
 
