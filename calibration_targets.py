@@ -23,6 +23,11 @@ calib_targets = {
                   'data': (348., 291., 410.)},
                  {'indicator': 'tb_prevalence', 'year': 1930., 'min_accepted_value': 0., 'max_accepted_value': 2000.},
                  {'indicator': 'tb_prevalence', 'year': 1950., 'min_accepted_value': 0., 'max_accepted_value': 2000.}
-                 ]
+                 ],
+    'Mongolia': [{'indicator': 'tb_prevalence', 'year': 2016., 'min_accepted_value': 130., 'max_accepted_value': 300.,
+                 'data': (204., 143., 265.), 'category': ['_smearpos', 'more_than_15']},
+                 {'indicator': 'tb_prevalence', 'year': 1930., 'min_accepted_value': 0., 'max_accepted_value': 3000.},
+                 {'indicator': 'tb_prevalence', 'year': 1950., 'min_accepted_value': 30., 'max_accepted_value': 3000.}
+                ]
 }
 
