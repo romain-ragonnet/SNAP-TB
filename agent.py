@@ -55,40 +55,40 @@ class individual:
         else:
             self.programmed['death'] = random.randint(0, 10.*365.25, 1)[0]
 
-    def set_date_leaving_home(self, params, minimum_date=None):
+    def set_date_leaving_home(self, minimal_age_leave_hh, maximal_age_leave_hh, minimum_date=None):
         """
         Define the date at which individuals will be leaving the household
         :param minimum_date: if specified, lower bound for the leaving date
         """
-        self.programmed['leave_home'] = round(self.dOB + 365.25 *\
-                                                   random.uniform(params['minimal_age_leave_hh'],
-                                                                  params['maximal_age_leave_hh']))
+        self.programmed['leave_home'] = round(self.dOB + 365.25 * random.uniform(minimal_age_leave_hh,
+                                                                                 maximal_age_leave_hh))
         if minimum_date is not None:
             self.programmed['leave_home'] = max(self.programmed['leave_home'], minimum_date)
 
-    def set_school_and_work_details(self, params):
+    def set_school_and_work_details(self, school_age, active_age_low, perc_active):
         """
         Define the three following dates:
          - go_to_school_date
          - out_of_school_date
          - out_of_work_date
         """
-        age_go_to_school = params['school_age'] * 365.25 + random.uniform(-1., 1.) * 365.25  # in days
-        age_out_of_school = params['active_age_low'] * 365.25 + random.uniform(-3., 3.) * 365.25  # in days
+        age_go_to_school = school_age * 365.25 + random.uniform(-1., 1.) * 365.25  # in days
+        age_out_of_school = active_age_low * 365.25 + random.uniform(-3., 3.) * 365.25  # in days
         age_out_of_work = random.uniform(55., 70.) * 365.25  # in days
 
         self.programmed['go_to_school'] = self.dOB + round(age_go_to_school)
         self.programmed['leave_school'] = self.dOB + round(age_out_of_school)
         self.programmed['leave_work'] = self.dOB + round(age_out_of_work)
 
-        active = random.binomial(1, params['perc_active']/100.)
+        active = random.binomial(1, perc_active/100.)
         if active == 1:
             self.is_ever_gonna_work = True
 
     def get_age_in_years(self, time):
         return (time - self.dOB)/365.25
 
-    def get_relative_susceptibility(self, time, params):
+    def get_relative_susceptibility(self, time, bcg_start_waning_year, bcg_end_waning_year, bcg_maximal_efficacy,
+                                    latent_protection_multiplier):
         """
         Return the relative susceptibility to infection of the individual. This quantity depends on the following factors:
          vaccination status, age ...
@@ -97,22 +97,22 @@ class individual:
         rr = 1.
         if self.vaccinated:
             age = self.get_age_in_years(time)
-            if age <= params['bcg_start_waning_year']:
-                efficacy = params['bcg_maximal_efficacy']
-            elif age <= params['bcg_end_waning_year']:
-                efficacy = params['bcg_maximal_efficacy'] - \
-                           (age - params['bcg_start_waning_year']) * \
-                                                            params['bcg_maximal_efficacy'] / \
-                                                            (params['bcg_end_waning_year'] - params['bcg_start_waning_year'])
+            if age <= bcg_start_waning_year:
+                efficacy = bcg_maximal_efficacy
+            elif age <= bcg_end_waning_year:
+                efficacy = bcg_maximal_efficacy - \
+                           (age - bcg_start_waning_year) * bcg_maximal_efficacy / \
+                           (bcg_end_waning_year - bcg_start_waning_year)
             else:
                 efficacy = 0.
             rr *= 1. - efficacy
 
         if self.ltbi:
-            rr *= params['latent_protection_multiplier']
+            rr *= latent_protection_multiplier
         return rr
 
-    def get_relative_infectiousness(self, params, time):
+    def get_relative_infectiousness(self, infectiousness_switching_age, linear_scaleup_infectiousness,
+                                    rel_infectiousness_smearneg, rel_infectiousness_after_detect, time):
         """
             Return the relative infectiousness of the individual. This quantity depends on the following factors:
             detection status, treatment status. Smear status
@@ -121,10 +121,10 @@ class individual:
         age = self.get_age_in_years(time)
 
         # sigmoidal scale-up
-        rr = 1. / (1. + exp(-(age - params['infectiousness_switching_age'])))
+        rr = 1. / (1. + exp(-(age - infectiousness_switching_age)))
 
         # alternate profile for infectiousness
-        if params['linear_scaleup_infectiousness']:
+        if linear_scaleup_infectiousness:
             if age <= 10.:
                 rr = 0.
             elif age >= 15:
@@ -134,14 +134,14 @@ class individual:
 
         # organ-manifestation
         if self.tb_organ == '_smearneg':
-            rr *= params['rel_infectiousness_smearneg']
+            rr *= rel_infectiousness_smearneg
         elif self.tb_organ == '_extrapulmonary':
             return 0.
 
         # detection status
         if 'detection' in self.programmed.keys():
             if time >= self.programmed['detection']:
-                rr *= params['rel_infectiousness_after_detect']
+                rr *= rel_infectiousness_after_detect
 
         return rr
 
@@ -164,21 +164,22 @@ class individual:
             # the individual will activate TB
             self.programmed['activation'] = round(time + time_to_activation)
 
-    def test_individual_for_ltbi(self, params):
+    def test_individual_for_ltbi(self, ltbi_test_sensitivity, ltbi_test_specificity_if_bcg,
+                                 ltbi_test_specificity_no_bcg):
         """
         Apply screening to an individual. This individual may or may not be infected.
         return: a boolean variable indicating the result of the test (True for positif test)
         """
         if self.ltbi:  # infected individual.
-            test_result = bool(random.binomial(n=1, p=params['ltbi_test_sensitivity']))
+            test_result = bool(random.binomial(n=1, p=ltbi_test_sensitivity))
         else:  # not infected
             if self.vaccinated:  # bcg affects specificity
-                test_result = bool(random.binomial(n=1, p=1. - params['ltbi_test_specificity_if_bcg']))
+                test_result = bool(random.binomial(n=1, p=1. - ltbi_test_specificity_if_bcg))
             else:
-                test_result = bool(random.binomial(n=1, p=1. - params['ltbi_test_specificity_no_bcg']))
+                test_result = bool(random.binomial(n=1, p=1. - ltbi_test_specificity_no_bcg))
         return test_result
 
-    def get_preventive_treatment(self, params, time=0, delayed=False):
+    def get_preventive_treatment(self, pt_efficacy, pt_delay_due_to_tst, time=0, delayed=False):
         """
         The individual receives preventive treatment. If the individual is currently infected, infection vanishes with
         probability pt_efficacy. The efficacy parameter represents a combined rate of adherence and treatment efficacy.
@@ -187,11 +188,11 @@ class individual:
         """
         date_prevented_activation = None
         if self.ltbi:
-            success = random.binomial(n=1, p=params['pt_efficacy'])
+            success = random.binomial(n=1, p=pt_efficacy)
             if success == 1:
                 self.ltbi = False
                 if 'activation' in self.programmed.keys():
-                    if not delayed or (delayed and (time + params['pt_delay_due_to_tst']) <= self.programmed['activation']):
+                    if not delayed or (delayed and (time + pt_delay_due_to_tst) <= self.programmed['activation']):
                         date_prevented_activation = self.programmed['activation']
                         del self.programmed['activation']
 

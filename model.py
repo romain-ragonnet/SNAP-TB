@@ -849,11 +849,13 @@ class Model:
         self.individuals[ind_id].set_death_date(np.random.choice(self.pool_of_life_durations, 1)[0])
         self.add_event_to_programmed_events('death', ind_id)
         if self.time > 0:
-            self.individuals[ind_id].set_date_leaving_home(params=self.params)
+            self.individuals[ind_id].set_date_leaving_home(self.params['minimal_age_leave_hh'],
+                                                           self.params['maximal_age_leave_hh'])
             self.add_event_to_programmed_events('leave_home', ind_id)
 
         self.individuals[ind_id].assign_vaccination_status(self.scale_up_functions_current_time['bcg_coverage_prop'])
-        self.individuals[ind_id].set_school_and_work_details(self.params)
+        self.individuals[ind_id].set_school_and_work_details(self.params['school_age'],
+                                                             self.params['active_age_low'], self.params['perc_active'])
         self.update_school_and_work_programs(ind_id)
         self.dates_of_birth[ind_id] = self.individuals[ind_id].dOB
 
@@ -968,7 +970,9 @@ class Model:
         screened_ind_ids = self.pick_screened_individuals()
         for ind_id in screened_ind_ids:
             # screening
-            test_result = self.individuals[ind_id].test_individual_for_ltbi(self.params)
+            test_result = self.individuals[ind_id].test_individual_for_ltbi(self.params['ltbi_test_sensitivity'],
+                                                                            self.params['ltbi_test_specificity_if_bcg'],
+                                                                            self.params['ltbi_test_specificity_no_bcg'])
 
             # treatment
             if test_result:
@@ -1278,7 +1282,10 @@ class Model:
         for location in contact_dict.keys():
             for contacted_id, nb_contacts in contact_dict[location].iteritems():
                 transmission_proba = self.params['proba_infection_per_contact'] *\
-                                     self.individuals[contacted_id].get_relative_susceptibility(self.time, self.params) *\
+                                     self.individuals[contacted_id].get_relative_susceptibility(
+                                         self.time, self.params['bcg_start_waning_year'],
+                                         self.params['bcg_end_waning_year'], self.params['bcg_maximal_efficacy'],
+                                         self.params['latent_protection_multiplier']) *\
                                      relative_infectiousness
 
                 # relative contact fitness according to location
@@ -1510,7 +1517,9 @@ class Model:
                     shall_we_test = True
 
             if shall_we_test:
-                ltbi_test = self.individuals[contact_id].test_individual_for_ltbi(self.params)
+                ltbi_test = self.individuals[contact_id].test_individual_for_ltbi(
+                    self.params['ltbi_test_sensitivity'], self.params['ltbi_test_specificity_if_bcg'],
+                    self.params['ltbi_test_specificity_no_bcg'])
                 if ltbi_test:
                     self.provide_preventive_treatment(contact_id, delayed=True)
             else:  # provide pt without testing
@@ -1582,7 +1591,9 @@ class Model:
         """
         self.n_pt_provided += 1.
         pre_ltbi = copy.copy(self.individuals[ind_id].ltbi)
-        date_prevented_activation = self.individuals[ind_id].get_preventive_treatment(self.params, time=self.time, delayed=delayed)
+        date_prevented_activation = self.individuals[ind_id].get_preventive_treatment(
+            pt_efficacy=self.params['pt_efficacy'], pt_delay_due_to_tst=self.params['pt_delay_due_to_tst'],
+            time=self.time, delayed=delayed)
         if date_prevented_activation is not None:  # The treatment is successful and useful
             self.programmed_events['activation'][date_prevented_activation] = [ids for ids in \
                                                                                 self.programmed_events['activation'][
@@ -1816,7 +1827,10 @@ class TbModel(Model):
         Rules the whole transmission process.
         """
         for ind_id in self.active_cases:
-            relative_infectiousness = self.individuals[ind_id].get_relative_infectiousness(self.params, self.time)
+            relative_infectiousness = self.individuals[ind_id].get_relative_infectiousness(
+                self.params['infectiousness_switching_age'], self.params['linear_scaleup_infectiousness'],
+                self.params['rel_infectiousness_smearneg'], self.params['rel_infectiousness_after_detect'],
+                self.time)
             if relative_infectiousness > 0.:  # the index case is infectious
                 contact_dict = self.get_contacts_during_last_step(ind_id)  # returns a dictionary keyed with contact ids, valued with nb of contacts
                 self.apply_transmission(contact_dict, relative_infectiousness, index_id=ind_id)
