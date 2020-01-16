@@ -52,8 +52,7 @@ def get_iso3(country):
         return 'IND'
     elif country == 'China':
         return 'CHN'
-    elif country == 'Vietnam' or country =='Viet Nam':
-        return 'VNM'
+
     base_path = path.join('country_data')
     sheet_path = path.join(base_path, 'iso3.xlsx')
     if path.isfile(sheet_path):
@@ -258,11 +257,8 @@ class data:
         # time-variant parameters:
         if self.console['country'] != "None":
             keys_of_sheet_to_read = ['bcg_2016', 'gtb_2015', 'gtb_2016', 'outcomes_2015']
-            country_key = self.console['country']
-            if self.console['country'] == 'Vietnam':
-                country_key = "Viet Nam"
             self.data_from_sheets = spreadsheet.read_input_data_xls(True, keys_of_sheet_to_read,
-                                                                    country_key, False)
+                                                                    self.console['country'], False)
             # manual updates
             self.data_from_sheets['outcomes']['c_new_tsr'].update({1950: 0.})
             self.data_from_sheets['gtb_2016']['c_cdr'].update({1950: 0.})
@@ -371,8 +367,6 @@ class data:
 
         if self.console['country'] == "None":
             region = "World"
-        elif self.console['country'] == 'Vietnam':
-            region = "Viet Nam"
         else:
             region = self.console['country']
         for line in range(sheet.max_row + 1)[2:]:

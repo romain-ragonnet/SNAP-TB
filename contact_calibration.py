@@ -53,10 +53,7 @@ def read_matrix(contact_type, country):
     filename = 'MUestimates_' + contact_type + string_to_add
     sheet_path = path.join(contact_base_path, filename + '.xlsx')
     wb = load_workbook(sheet_path, read_only=True)
-    sheet_key = country
-    if country == 'Vietnam':
-        sheet_key = 'Viet Nam'
-    sheet = wb.get_sheet_by_name(sheet_key)
+    sheet = wb.get_sheet_by_name(country)
 
     # matrix creation
     row_index = 0

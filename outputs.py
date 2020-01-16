@@ -6,6 +6,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
 import matplotlib.patches as patches
 from matplotlib.colors import LightSource
+import matplotlib.ticker as ticker
 
 import importData as imp
 
@@ -15,6 +16,7 @@ import numpy as np
 import csv
 import dill
 import copy
+import csv
 if os.name == 'nt':
     from seaborn import violinplot
 from scipy import stats
@@ -52,6 +54,144 @@ class output:
 
         if self.model_runner.data.console['running_mode'] != 'find_a_calibrated_model':
             self.store_outputs()
+
+    def make_sensitivity_plot(self):
+        param_vals = get_lhs_param_values('calibrated_models/test_LHScalibration_100s12r_Jul2019_' +
+                                          self.model_runner.country + '/all_lhs_values.csv')
+
+        print param_vals.keys()
+        translate = {'proba_infection_per_contact': 'transmission probability', 'n_colleagues': '# of colleagues',
+                     'infectiousness_switching_age': 'infectiousness switching age (a)',
+                     'g_child': "g_child", 'g_teen': 'g_teen', 'g_adult': 'g_adult'}
+
+        self.i_figure += 1
+        plt.figure(self.i_figure, figsize=(3.7, (5 + 0.5)*0.9))
+
+        h_ratios = [0.5, 5., 5., 5., 5., 5.]
+
+        gs = gridspec.GridSpec(6, 4,
+                               width_ratios=[0.7, 1., 1., 1.],
+                               height_ratios=h_ratios
+                               )
+        gs.update(wspace=0.12, hspace=0.1)
+
+        #  panel titles
+        # titles = ['Contacts', 'Transmission', 'Transmission leading\nto active TB']
+        # row = 0
+        # for i, title in enumerate(titles):
+        #     plt.subplot(gs[row, i+1])
+        #     plt.text(x=0.5, y=0.9, s='', fontsize=5, horizontalalignment='center',
+        #             verticalalignment='center',)
+        #     plt.grid(False)
+        #     plt.axis('off')
+
+        output_names = ['% household', "% school", "% work", "% other", "% pediatric TB"]
+        row = 0
+        for output_name in output_names:
+            row += 1
+
+            # country name
+            col = 0
+            plt.subplot(gs[row, col])
+            plt.text(x=-0.2, y=0.5, s=output_name, fontsize=5)
+            plt.grid(False)
+            plt.axis('off')
+
+            j = 0
+            #for param in ['proba_infection_per_contact', 'infectiousness_switching_age', 'n_colleagues']:
+            for param in ['g_child', 'g_teen', 'g_adult']:
+
+
+                j += 1
+                # contacts heatmap
+                col = j
+                ax = plt.subplot(gs[row, col])
+                self.make_a_sensitivity_plot(output_name, param, translate, param_vals, ax)
+
+        filename = 'sensitivity_' + self.model_runner.country + '.pdf'  # + self.model_runner.data.console['graph_format']
+        file_path = os.path.join(self.base_path, filename)
+        plt.savefig(file_path)
+        plt.close()
+
+    def make_a_sensitivity_plot(self, output_name, param, translate, param_vals, ax):
+
+        x_vals = []
+        y_vals = []
+
+        for i_run in range(self.model_runner.nb_seeds):
+            sample_id = self.model_runner.paths_to_calibrated_models[i_run].split("sample_")[1]
+            sample_id = sample_id.split("_")[0]
+            sample_id = int(sample_id)
+            x_vals.append(float(param_vals[param][sample_id]))
+            y_vals.append(self.get_output(i_run, output_name))
+
+        plt.scatter(x_vals, y_vals, s=.6)
+        plt.grid(False)
+
+        ticks = [min(x_vals), max(x_vals)]
+        ax.set_xticks(ticks)
+        ax.set_xlim(ticks)
+
+        show_x_ticks = 'off'
+        if output_name == "% pediatric TB":
+            show_x_ticks = 'on'
+            plt.xlabel(translate[param],fontsize=5)
+
+        show_y_ticks = 'off'
+        if param == 'proba_infection_per_contact':
+            show_y_ticks = 'on'
+
+        plt.tick_params(
+                axis='x',  # changes apply to the x-axis
+                which='both',  # both major and minor ticks are affected
+                bottom=show_x_ticks,  # ticks along the bottom edge are off
+                top='off',  # ticks along the top edge are off
+                labelbottom=show_x_ticks,
+                length=2.,
+                pad=0.5,  # distance tick - label
+                labelsize=4,
+                colors='black'
+            )  # labels along the bottom edge are off
+        plt.tick_params(
+                axis='y',  # changes apply to the x-axis
+                which='both',  # both major and minor ticks are affected
+                left=show_y_ticks,  # ticks along the bottom edge are off
+                right='off',  # ticks along the top edge are off
+                labelleft=show_y_ticks,
+                length=2.,
+                pad=0.5,
+                labelsize=4,
+                colors='black'
+            )  # labels along the bottom edge are off
+
+    def get_output(self, i_run, output_name):
+
+        if "diatric" not in output_name:
+            contrib = self.model_runner.model_diagnostics['scenario_1']['n_contacts']['transmission_end_tb']
+            num = 0.
+            denom = 0.
+            for key in contrib.keys():
+                val = float(contrib[key][i_run])
+                denom += val
+                if "house" in output_name and key == 'household':
+                    num = val
+                elif "school" in output_name and key == 'school':
+                    num = val
+                elif "work" in output_name and key == 'workplace':
+                    num = val
+                elif "other" in output_name and key == 'community':
+                    num = val
+            if denom>0.:
+                y = 100.*num/denom
+            else:
+                y = 0.
+        else:
+            tb_ages = self.model_runner.model_diagnostics['scenario_1']['all_tb_ages'][i_run]
+            n_ped = len([a for a in tb_ages if a <= 15])
+            y = float(n_ped) / float(len(tb_ages))
+
+        return y
+
 
     def create_directories(self):
         """
@@ -527,6 +667,80 @@ class output:
         for series_name in self.timeseries_to_plot:
             self.plot_an_aggregated_timeseries_variable(scenario='All', series_name=series_name, ci=True)
 
+    def make_calibration_graph(self, scenario_to_plot=None, in_scenario_dir=False):
+        if os.name != 'nt':  # seaborn package not installed on remote server
+            return
+
+        if scenario_to_plot is None:
+            scenarios_to_consider = self.model_runner.data.scenario_names
+        else:
+            scenarios_to_consider = [scenario_to_plot]
+
+        self.i_figure += 1
+        plt.figure(self.i_figure)
+
+        mu = self.model_runner.data.common_parameters['targetted_prevalence']
+        width = self.model_runner.data.common_parameters['targetted_prevalence_high'] - self.model_runner.data.common_parameters['targetted_prevalence_low']
+        sd = width / (2. * 1.96)
+        random_samples = [np.random.normal(mu, sd, 100000) for _ in range(len(scenarios_to_consider))]
+        positions = [float(i+1) for i in range(len(scenarios_to_consider))]
+        labels = [scenario.split('_')[-1] for scenario in scenarios_to_consider]
+        violin_widths = [0.6] * len(scenarios_to_consider)
+        if scenario_to_plot is not None:
+            violin_widths = [0.4]
+        plt.violinplot(random_samples, showmeans=False, showmedians=True, showextrema=False, positions=positions,
+                       widths=violin_widths)
+        best_dist = 1.e10
+        for i, scenario in enumerate(scenarios_to_consider):
+            x = [float(i+1)] * self.model_runner.data.console['n_runs'] * self.model_runner.nb_seeds
+            model_outputs_for_calibration = []
+            target_indicator = 'tb_prevalence'  # hard-coded
+            for i_run in range(self.model_runner.data.console['n_runs'] * self.model_runner.nb_seeds):
+                model_output = self.model_runner.model_diagnostics[scenario]['timeseries'][target_indicator][i_run, -1]
+                model_outputs_for_calibration.append(model_output)
+            plt.plot(x, model_outputs_for_calibration, 'ro', markersize=3.)
+
+            dist, p_value = stats.ks_2samp(model_outputs_for_calibration, random_samples[i])
+            dist = round(dist, 4)
+            plt.text(x=x[0]-0.4, y=self.model_runner.data.common_parameters['targetted_prevalence_high'],  s='D=' + str(dist),
+                     rotation=90, verticalalignment='bottom')
+
+            if dist < best_dist:
+                best_dist = dist
+                best_scenario = scenario
+
+        plt.xlabel(self.dictionary[self.model_runner.data.calibration_params.keys()[0]])
+        plt.ylabel(self.dictionary['tb_prevalence'])
+
+        plt.xticks(positions, labels)
+
+        filename = 'calibration_results.' + self.model_runner.data.console['graph_format']
+        if scenario_to_plot is not None:
+            plt.xlim(0., 2.)
+            filename = 'calibration_results_param_' + scenario_to_plot.split('_')[-1] + '.' + self.model_runner.data.console['graph_format']
+        if in_scenario_dir:
+            file_path = os.path.join(self.base_path, scenario_to_plot, filename)
+        else:
+            file_path = os.path.join(self.base_path, 'all_scenarios', filename)
+        plt.savefig(file_path)
+        plt.close()
+
+        if scenario_to_plot is None:
+            self.make_calibration_graph(best_scenario)
+
+    def perform_anova_test_comparing_seeds(self, scenario):
+        all_model_outputs = {}
+        target_indicator = 'tb_prevalence'  # hard-coded
+        for seed_index in range(self.model_runner.nb_seeds):
+            all_model_outputs[seed_index] = []
+            for run_index in range(self.model_runner.data.console['n_runs']):
+                i_run = seed_index * self.model_runner.data.console['n_runs'] + run_index
+                model_output = self.model_runner.model_diagnostics[scenario]['timeseries'][target_indicator][i_run, -1]
+                all_model_outputs[seed_index].append(model_output)
+
+        # anova_results = stats.f_oneway()  # arguments have to be listed explicitly
+        # print anova_results
+
     def write_prevalence_by_age(self, scenario):
         age_breaks = [0., 5., 10., 15., 25., 35., 45., 55., 65.]
         age_cats = [['X_1'], ['X_2'], ['X_3'], ['X_4', 'X_5'], ['X_6', 'X_7'], ['X_8', 'X_9'], ['X_10', 'X_11'],
@@ -840,33 +1054,38 @@ class multi_output:
 
         # contribution of age-categories
         print "###############################"
-        print key
+        print key + ' in ' + self.output_objects[country].model_runner.country
         a = self.output_objects[country].model_runner.model_diagnostics[scenario]['contact_matrices'][key]['all']
         all_contacts = a.sum()
         S = 0
-        for i in range(17):
-            age_min = i*5
-            age_max = age_min + 5
-            recipients = a[:, age_min:age_max].sum()
-            index = a[age_min:age_max, :].sum()
-            involving_either = recipients + index - a[age_min:age_max, age_min:age_max].sum()
+        # for i in range(17):
+        #     age_min = i*5
+        #     age_max = age_min + 5
+        #     recipients = a[:, age_min:age_max].sum()
+        #     index = a[age_min:age_max, :].sum()
+        #     involving_either = recipients + index - a[age_min:age_max, age_min:age_max].sum()
+        #
+        #     if all_contacts > 0:
+        #         S += index / all_contacts
+        #         print "Proportion of all events involving " + str(age_min) + "-" + str(age_max) + " as index: " + str(index / all_contacts)
+        #         # print "Proportion of contacts involving 15-20 as either recipient or index: " + str(
+        #         #     contacts_involving_15_20 / all_contacts)
 
-            if all_contacts > 0:
-                S += index / all_contacts
-                print "Proportion of all events involving " + str(age_min) + "-" + str(age_max) + " as index: " + str(index / all_contacts)
-                # print "Proportion of contacts involving 15-20 as either recipient or index: " + str(
-                #     contacts_involving_15_20 / all_contacts)
+        contacts_recipients_15_20 = a[:, 15:21].sum()
+        contacts_index_15_20 = a[15:21, :].sum()
+        contacts_involving_15_20 = contacts_recipients_15_20 + contacts_index_15_20 - a[15:21, 15:21].sum()
+        contacts_involving_15_20_only = a[15:21, 15:21].sum()
 
-            # contacts_recipients_15_20 = a[:, 15:21].sum()
-            # contacts_index_15_20 = a[15:21, :].sum()
-            # contacts_involving_15_20 = contacts_recipients_15_20 + contacts_index_15_20 - a[15:21, 15:21].sum()
-            #
-            # if all_contacts > 0:
-            #     print "Proportion of contacts involving 15-20 as recipients: " + str(
-            #         contacts_recipients_15_20 / all_contacts)
-            #     print "Proportion of contacts involving 15-20 as index: " + str(contacts_index_15_20 / all_contacts)
-            #     print "Proportion of contacts involving 15-20 as either recipient or index: " + str(
-            #         contacts_involving_15_20 / all_contacts)
+        #
+        if all_contacts > 0 and key != 'contact':
+
+            print "Perc of contacts involving 15-20 as index: " + str(round(100.*contacts_index_15_20 / all_contacts))
+            print "Perc of contacts involving 15-20 as recipient: " + str(
+                round(100.*contacts_recipients_15_20 / all_contacts))
+            print "Perc of contacts between 15-20 : " + str(
+                round(100.*contacts_involving_15_20_only / all_contacts))
+            print "Perc of contacts involving 15-20 as either recipient or index: " + str(
+                round(100.*contacts_involving_15_20 / all_contacts))
 
         print "S = " + str(S)
         # contribution of 15-20 years old
@@ -1666,7 +1885,32 @@ class multi_output:
             print "LTBI prevalence (%) in " + str(year) + " for " + country + ":"
             print str(mean_prev) + " (" + str(low), "- " + str(up) + ")"
 
+
+def get_lhs_param_values(path):
+
+    with open(path) as csv_data:
+        reader = csv.reader(csv_data)
+
+        # eliminate blank rows if they exist
+        rows = [row for row in reader if row]
+        headings = rows[0] # get headings
+
+        param_dict = {}
+        for row in rows[1:]:
+            # append the dataitem to the end of the dictionary entry
+            # set the default value of [] if this key has not been seen
+            for col_header, data_column in zip(headings, row):
+                param_dict.setdefault(col_header, []).append(data_column)
+
+    return param_dict
+
+
+
 if __name__ == "__main__":
+
+    # for country in ['India','Indonesia','Philippines', 'Pakistan']:
+    #     Out = load_outputs('outputs/analysis_100s12r_Jul2019_' + country + '/pickled_outputs.pickle')
+    #     Out.make_sensitivity_plot()
     #
     # Out = load_outputs('outputs/test_20K_pop_Indonesia/pickled_outputs.pickle')
     # Out.make_graphs()
@@ -1675,18 +1919,20 @@ if __name__ == "__main__":
 
     # ['India', 'Indonesia', 'China', 'Philippines', 'Pakistan']
 
+
     countries = ['India', 'Indonesia', 'China', 'Philippines', 'Pakistan']
-    countries = ['Indonesia']
-    MO = multi_output(countries=countries, project_name='test_analysis_20K_pop')
-    # MO.make_double_pyramids()
-
-    MO.make_multi_graphs()
-    MO.make_country_graphs()  # check the folder path in local console spreadsheet
-    MO.write_ltbi_prevalences()
-
-    for country in countries:
-        print "###############################"
-        print country
-        scenario = MO.output_objects[country].model_runner.data.scenarios.keys()[0]
-        MO.output_objects[country].write_prevalence_by_age_new(scenario)
-        print ""
+    # countries = ['Indonesia']
+    MO = multi_output(countries=countries, project_name='analysis_100s12r_Jul2019')
+    MO.make_heatmaps_figure()
+    # # MO.make_double_pyramids()
+    #
+    # MO.make_multi_graphs()
+    # MO.make_country_graphs()  # check the folder path in local console spreadsheet
+    # MO.write_ltbi_prevalences()
+    #
+    # for country in countries:
+    #     print "###############################"
+    #     print country
+    #     scenario = MO.output_objects[country].model_runner.data.scenarios.keys()[0]
+    #     MO.output_objects[country].write_prevalence_by_age_new(scenario)
+    #     print ""

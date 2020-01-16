@@ -285,3 +285,11 @@ class ModelRunner:
 
 
 
+if __name__ == "__main__":
+
+    file_path = 'calibrated_models/test_LHScalibration_100s12r_Jul2019_Philippines/pickled_calibrated_model_lhs_sample_0_run11.pickle'
+    file_stream = open(file_path, "rb")
+    loaded_model = dill.load(file_stream)
+
+    loaded_model.params['g_child']
+    print "s"

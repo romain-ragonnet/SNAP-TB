@@ -183,6 +183,8 @@ class Model:
         self.process_reset_records_date()
         self.process_rr_transmission_by_location()
         self.pool_of_life_durations = data.pool_of_life_durations
+        if self.params['alternate_latency_params']:
+            self.adjust_latency_parameters()
 
     def collect_scenario_specific_params(self, data):
         # collect or rewrite scenario-specific parameters
@@ -191,6 +193,8 @@ class Model:
                 self.params[key] = value
         if 'time_step' in data.scenarios[self.scenario].keys() or 'n_years' in data.scenarios[self.scenario].keys():
             self.process_n_iterations()
+        if self.params['alternate_latency_params']:
+            self.adjust_latency_parameters()
 
     def process_n_iterations(self):
         """
@@ -226,6 +230,33 @@ class Model:
                 if target['year'] not in self.remaining_calibration_targets.keys():
                     self.remaining_calibration_targets[target['year']] = []
                 self.remaining_calibration_targets[target['year']].append(target)
+
+    def adjust_latency_parameters(self):
+        """
+        If an alternate latency parameterization is requested, the latency parameters are adjusted so that the
+        duration of early latency becomes 5 years. The early activation rates are adjusted so that the overall risk
+        of progression remains unchanged for each age group.
+        """
+        mu = 1/(self.params['life_expectancy']*365.25)
+        years_in_la = 5.
+        for age in ['_child', '_teen', '_adult']:
+            epsi = self.params['epsi' + age]
+            kappa = self.params['kappa' + age]
+            nu = self.params['nu' + age]
+
+            # calculate overall proportion progressing to active TB
+            num = epsi * (nu + mu) + kappa * nu
+            deno = (kappa + epsi + mu) * (nu + mu)
+            prop = num / deno
+
+            # adjust kappa and epsi parameters
+            new_kappa = 1. / (365.25 * years_in_la)
+            num = prop * (new_kappa + mu) * (nu + mu) - new_kappa * nu
+            deno = (1. - prop) * (nu + mu)
+            new_epsi = num / deno
+
+            self.params['epsi' + age] = new_epsi
+            self.params['kappa' + age] = new_kappa
 
     def process_rr_transmission_by_location(self):
         self.params['rr_transmission_by_location'] = {}
@@ -721,6 +752,9 @@ class Model:
         Will make simulation stop if some conditions are verified
         """
         stop = False
+        if self.timeseries_log['tb_prevalence'][-1] >= self.params['prevalence_max']:
+            stop = True
+            print "Model run will be forced to stop because tb prevalence is too high."
         if self.tb_prevalence == 0 and len(self.programmed_events['activation'].values()) == 0 and self.time > 365.25*(
             self.params['duration_burning_demo'] + self.params['duration_burning_tb'] + 1.) and self.params['transmission']:
             stop = True
@@ -849,13 +883,11 @@ class Model:
         self.individuals[ind_id].set_death_date(np.random.choice(self.pool_of_life_durations, 1)[0])
         self.add_event_to_programmed_events('death', ind_id)
         if self.time > 0:
-            self.individuals[ind_id].set_date_leaving_home(self.params['minimal_age_leave_hh'],
-                                                           self.params['maximal_age_leave_hh'])
+            self.individuals[ind_id].set_date_leaving_home(params=self.params)
             self.add_event_to_programmed_events('leave_home', ind_id)
 
         self.individuals[ind_id].assign_vaccination_status(self.scale_up_functions_current_time['bcg_coverage_prop'])
-        self.individuals[ind_id].set_school_and_work_details(self.params['school_age'],
-                                                             self.params['active_age_low'], self.params['perc_active'])
+        self.individuals[ind_id].set_school_and_work_details(self.params)
         self.update_school_and_work_programs(ind_id)
         self.dates_of_birth[ind_id] = self.individuals[ind_id].dOB
 
@@ -970,9 +1002,7 @@ class Model:
         screened_ind_ids = self.pick_screened_individuals()
         for ind_id in screened_ind_ids:
             # screening
-            test_result = self.individuals[ind_id].test_individual_for_ltbi(self.params['ltbi_test_sensitivity'],
-                                                                            self.params['ltbi_test_specificity_if_bcg'],
-                                                                            self.params['ltbi_test_specificity_no_bcg'])
+            test_result = self.individuals[ind_id].test_individual_for_ltbi(self.params)
 
             # treatment
             if test_result:
@@ -1282,10 +1312,7 @@ class Model:
         for location in contact_dict.keys():
             for contacted_id, nb_contacts in contact_dict[location].iteritems():
                 transmission_proba = self.params['proba_infection_per_contact'] *\
-                                     self.individuals[contacted_id].get_relative_susceptibility(
-                                         self.time, self.params['bcg_start_waning_year'],
-                                         self.params['bcg_end_waning_year'], self.params['bcg_maximal_efficacy'],
-                                         self.params['latent_protection_multiplier']) *\
+                                     self.individuals[contacted_id].get_relative_susceptibility(self.time, self.params) *\
                                      relative_infectiousness
 
                 # relative contact fitness according to location
@@ -1517,9 +1544,7 @@ class Model:
                     shall_we_test = True
 
             if shall_we_test:
-                ltbi_test = self.individuals[contact_id].test_individual_for_ltbi(
-                    self.params['ltbi_test_sensitivity'], self.params['ltbi_test_specificity_if_bcg'],
-                    self.params['ltbi_test_specificity_no_bcg'])
+                ltbi_test = self.individuals[contact_id].test_individual_for_ltbi(self.params)
                 if ltbi_test:
                     self.provide_preventive_treatment(contact_id, delayed=True)
             else:  # provide pt without testing
@@ -1591,9 +1616,7 @@ class Model:
         """
         self.n_pt_provided += 1.
         pre_ltbi = copy.copy(self.individuals[ind_id].ltbi)
-        date_prevented_activation = self.individuals[ind_id].get_preventive_treatment(
-            pt_efficacy=self.params['pt_efficacy'], pt_delay_due_to_tst=self.params['pt_delay_due_to_tst'],
-            time=self.time, delayed=delayed)
+        date_prevented_activation = self.individuals[ind_id].get_preventive_treatment(self.params, time=self.time, delayed=delayed)
         if date_prevented_activation is not None:  # The treatment is successful and useful
             self.programmed_events['activation'][date_prevented_activation] = [ids for ids in \
                                                                                 self.programmed_events['activation'][
@@ -1827,10 +1850,7 @@ class TbModel(Model):
         Rules the whole transmission process.
         """
         for ind_id in self.active_cases:
-            relative_infectiousness = self.individuals[ind_id].get_relative_infectiousness(
-                self.params['infectiousness_switching_age'], self.params['linear_scaleup_infectiousness'],
-                self.params['rel_infectiousness_smearneg'], self.params['rel_infectiousness_after_detect'],
-                self.time)
+            relative_infectiousness = self.individuals[ind_id].get_relative_infectiousness(self.params, self.time)
             if relative_infectiousness > 0.:  # the index case is infectious
                 contact_dict = self.get_contacts_during_last_step(ind_id)  # returns a dictionary keyed with contact ids, valued with nb of contacts
                 self.apply_transmission(contact_dict, relative_infectiousness, index_id=ind_id)
@@ -1843,7 +1863,6 @@ class TbModel(Model):
         for organ in ['_smearpos', '_closed_tb']:
             # cdr = self.params['perc_cdr' + organ] / 100.
             cdr = self.scale_up_functions_current_time['cdr_prop']
-            mu = 0.01   # hard-coded natural mortality for CDR calculation
             if cdr > 0.95:
                 print "WARNING: a CDR too close to 100% will lead to no contact identified as detection occurs very quickly"
             assert cdr <= 1., "Case detection must be <= 1"
@@ -1853,9 +1872,7 @@ class TbModel(Model):
                 self.params['lambda_timeto_detection' + organ] = 1. / 1.e9 # some tiny value
             else:
                 self.params['lambda_timeto_detection' + organ] = \
-                    (cdr / (1. - cdr)) * (self.params['rate_sp_cure' + organ] +
-                                          self.params['rate_tb_mortality' + organ] +
-                                          mu)
+                    (cdr / (1. - cdr)) * self.params['lambda_timeto_sp_or_death' + organ]
 
     def process_organ_proportions(self):
         self.params['perc_smearpos'] = 100. * self.scale_up_functions_current_time['sp_prop']
@@ -1914,6 +1931,5 @@ class TbModel(Model):
                 self.tb_prevalence_by_age.append( 1.e5 * nb_cases[i]/agegroup_size[i])  # now /100,000
             else:
                 self.tb_prevalence_by_age.append(0.)
-
 
 
