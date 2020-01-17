@@ -118,12 +118,11 @@ class individual:
             detection status, treatment status. Smear status
             Returns the relative infectiousness. Baseline is for an undetected Smear-positive TB case.
         """
+        if self.tb_organ == '_extrapulmonary':
+            return 0.
+
+        # age-specific profile for infectiousness
         age = self.get_age_in_years(time)
-
-        # sigmoidal scale-up
-        rr = 1. / (1. + exp(-(age - params['infectiousness_switching_age'])))
-
-        # alternate profile for infectiousness
         if params['linear_scaleup_infectiousness']:
             if age <= 10.:
                 rr = 0.
@@ -131,16 +130,16 @@ class individual:
                 rr = 1.
             else:
                 rr = 0.2 * age - 2.
+        else:
+            # sigmoidal scale-up
+            rr = 1. / (1. + exp(-(age - params['infectiousness_switching_age'])))
 
         # organ-manifestation
         if self.tb_organ == '_smearneg':
             rr *= params['rel_infectiousness_smearneg']
-        elif self.tb_organ == '_extrapulmonary':
-            return 0.
 
         # detection status
-        if 'detection' in self.programmed.keys():
-            if time >= self.programmed['detection']:
+        if 'detection' in self.programmed.keys() and time >= self.programmed['detection']:
                 rr *= params['rel_infectiousness_after_detect']
 
         return rr

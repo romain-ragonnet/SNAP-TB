@@ -1863,5 +1863,3 @@ class TbModel(Model):
                 self.tb_prevalence_by_age.append( 1.e5 * nb_cases[i]/agegroup_size[i])  # now /100,000
             else:
                 self.tb_prevalence_by_age.append(0.)
-
-
