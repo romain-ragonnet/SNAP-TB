@@ -1,6 +1,7 @@
 from numpy import random, nonzero, exp
 import tb_activation
 
+
 class individual:
     """
     This class defines the individuals
@@ -305,15 +306,6 @@ class individual:
         # Otherwise, natural death occurs before detection
         else:
             return {'time_active': self.programmed['death'] - time}
-
-    # def record_contacts(self, contact_dict):
-    #     """
-    #     update the attribute self.contacts_while_tb according to the content of contact_dict
-    #     """
-    #     for location in self.contacts_while_tb.keys():
-    #         for contact_id in contact_dict[location].keys():
-    #             if contact_id not in self.contacts_while_tb[location]:
-    #                 self.contacts_while_tb[location].append(contact_id)
 
     def detect_tb(self):
         self.tb_detected = True
