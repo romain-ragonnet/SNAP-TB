@@ -13,6 +13,7 @@ import dill
 import time
 from calibration_targets import calib_targets
 
+
 def age_preference_function(age_difference, sigma):
     """
     Given the age difference between two individuals, computes the relative probability of contact.
@@ -21,6 +22,7 @@ def age_preference_function(age_difference, sigma):
     """
     relative_risk = np.exp(-age_difference ** 2 / (2 * sigma ** 2))
     return relative_risk
+
 
 class Model:
     """
