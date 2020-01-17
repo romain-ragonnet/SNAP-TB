@@ -259,9 +259,6 @@ class Model:
             h_id = i
             self.households[h_id] = household.household(h_id)
             self.n_households += 1
-        # Create an extra household which is a retirement home
-        self.households[h_id + 1] = household.household(h_id + 1, retirement_home=True)
-        self.n_households += 1
 
     def populate_households(self):
         """
@@ -270,8 +267,6 @@ class Model:
         # Allocate the adults first
         parenting_households = [] # store the hh ids where kids can be allocated during the initialisation phase
         for h in self.households.values():
-            if h.retirement_home:
-                continue
             parents_age = np.random.uniform(self.params['minimal_age_leave_hh'], 100.)  # btwn 18 and 100.
             h.repopulate_date = self.time - 365.25*(parents_age - self.params['minimal_age_leave_hh'])
             if self.time - h.repopulate_date < 365.25*20.:
@@ -318,8 +313,6 @@ class Model:
         n_schools = int(ceil(self.params['n_schools'] * self.population / 1.e5))
         self.groups_by_type['schools'] = range(1, n_schools + 1)
         for hh_id in self.households.keys():
-            if self.households[hh_id].retirement_home:
-                continue
             self.households[hh_id].school_id = np.random.choice(self.groups_by_type['schools'], 1)[0]
         for school_id in self.groups_by_type['schools']:
             self.groups[school_id] = []
@@ -476,8 +469,7 @@ class Model:
         """
         self.eligible_hh_for_birth = {}
         for h in self.households.values():
-            if not h.retirement_home and \
-                            (self.time - h.repopulate_date) < 365.25 * self.params['duration_hh_eligible_for_birth'] and \
+            if (self.time - h.repopulate_date) < 365.25 * self.params['duration_hh_eligible_for_birth'] and \
                     h.size > 0 and (self.time - h.last_baby_time) > h.minimum_time_to_next_baby:
                 self.eligible_hh_for_birth[h.id] = h.size
 
@@ -501,33 +493,9 @@ class Model:
             hh_size = 0
             while hh_size == 0:
                 hh_id = np.random.choice(self.households.keys(), 1)[0]
-                if not self.households[hh_id].retirement_home:
-                    hh_size = self.households[hh_id].size
+                hh_size = self.households[hh_id].size
+
         return hh_id
-
-    def take_elderly_to_retirement_home(self):
-        """
-        Each year, some of the individuals who live alone and who are >70 years old are going to the retirement home.
-        The proba of going to retirement home is calculated so that 'perc_single_over90yo_in_retirement_home' % of single
-        individuals >90 yo are in a retirement home.
-        """
-        proba_go_to_retirement_home = 1 - pow(1. - self.params['perc_single_over90yo_in_retirement_home']/100., 1./20.)
-        for h in self.households.values():
-            if not h.retirement_home and h.size == 1:
-                ind_id = h.individual_ids[0]
-                age = self.individuals[ind_id].get_age_in_years(self.time)
-                if age >= 70.:
-                    if bool(np.random.binomial(1, proba_go_to_retirement_home)):
-                        # update individual's attributes
-                        self.individuals[ind_id].household_id = self.n_households - 1
-                        # update previous hh attributes
-                        self.households[h.id].size = 0
-                        self.households[h.id].individual_ids = []
-                        self.empty_households.append(h.id)
-
-                        # update retirement home attributes
-                        self.households[self.n_households - 1].size += 1
-                        self.households[self.n_households - 1].individual_ids.append(ind_id)
 
     def lighten_want_to_move_home(self):
         """
@@ -762,7 +730,6 @@ class Model:
             self.build_or_destroy_households()
         self.list_eligible_households_for_birth()
 
-        self.take_elderly_to_retirement_home()
         self.lighten_want_to_move_home()
 
         self.update_ind_by_agegroup()
@@ -1375,7 +1342,7 @@ class Model:
         self.population -= 1
 
         # The previous household may become empty and eligible for a new couple to move in
-        if self.households[previous_hh_id].size == 0 and not self.households[previous_hh_id].retirement_home:
+        if self.households[previous_hh_id].size == 0:
             if previous_hh_id in self.eligible_hh_for_birth.keys():
                 self.households[previous_hh_id].repopulate_date = -1.e8
                 del(self.eligible_hh_for_birth[previous_hh_id])
@@ -1605,8 +1572,7 @@ class Model:
                 individual in self.individuals.values()]
 
         # Household size distribition
-        self.checkpoint_outcomes['household_sizes'][self.time] = [h.size for h in self.households.values() if
-                                                                  not h.retirement_home]
+        self.checkpoint_outcomes['household_sizes'][self.time] = [h.size for h in self.households.values()]
 
         # School and worplace sizes
         for group_type in ['school', 'workplace']:
