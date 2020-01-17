@@ -2,7 +2,7 @@ from numpy import random, nonzero, exp
 import tb_activation
 
 
-class individual:
+class Individual:
     """
     This class defines the individuals
     """

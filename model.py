@@ -291,7 +291,7 @@ class Model:
             ind_id = self.last_ind_id + 1
             self.last_ind_id += 1
 
-        self.individuals[ind_id] = agent.individual(id=ind_id, household_id=h_id, dOB=0.)
+        self.individuals[ind_id] = agent.Individual(id=ind_id, household_id=h_id, dOB=0.)
 
         self.set_birth_and_death(ind_id, age=age)
         if age == 0.:
