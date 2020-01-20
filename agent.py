@@ -1,5 +1,27 @@
-from numpy import random, nonzero, exp
+from numpy import random, nonzero, exp, linspace
 import tb_activation
+
+
+def draw_life_duration_using_death_rates():
+        """Unused for the moment"""
+
+        # example dict with death rates by age for this individual, i.e. already accounting for their dob.
+        death_rates = {0: .006, 5: .0006, 10: .0006, 15: .0015, 20: .0015, 25: .0015, 30: .002,
+                       35: .0035, 40: .0035, 45: .0035, 50: .005, 55: .007, 60: .01, 65: .01,
+                       70: .1, 75: .1, 80: .2, 85: .3, 90: .5, 95: 1.}
+
+        scales = [1./death_rates[int(i)] for i in linspace(0, 95, num=20)]
+        times = random.exponential(scales)
+        found_a_time = False
+        for i, time in enumerate(times):
+            if time <= 5.:
+                life_duration = 5.*i + time
+                found_a_time = True
+                break
+        if not found_a_time:
+            life_duration = 100.
+
+        return life_duration
 
 
 class Individual:
@@ -383,3 +405,11 @@ class Individual:
             print "subgroup is not admissible"
 
         return test
+
+
+if __name__ == '__main__':
+    ages = []
+    for i in range(10000):
+        ages.append(draw_life_duration_using_death_rates())
+
+    print sum(ages)/len(ages)
