@@ -1441,7 +1441,7 @@ class Model:
             relevant_contact_types = ['household', 'school', 'workplace']
         elif self.params['contact_type_for_contact_tracing_pt'] == 'network':
             relevant_contact_types = ['school', 'workplace']
-        else:  # school or workplace or hosuehold
+        else:  # school or workplace or household
             relevant_contact_types = [self.params['contact_type_for_contact_tracing_pt']]
 
         all_identified_contacts = []
