@@ -1793,7 +1793,6 @@ class TbModel(Model):
         distribution associated with the time to detection which would yield the specified cdr.
         """
         for organ in ['_smearpos', '_closed_tb']:
-            # cdr = self.params['perc_cdr' + organ] / 100.
             cdr = self.scale_up_functions_current_time['cdr_prop']
             if cdr > 0.95:
                 print "WARNING: a CDR too close to 100% will lead to no contact identified as detection occurs very quickly"
@@ -1803,8 +1802,9 @@ class TbModel(Model):
             elif cdr == 0.:
                 self.params['lambda_timeto_detection' + organ] = 1. / 1.e9 # some tiny value
             else:
+                mu = 1. / 70.
                 self.params['lambda_timeto_detection' + organ] = \
-                    (cdr / (1. - cdr)) * self.params['lambda_timeto_sp_or_death' + organ]
+                    (cdr / (1. - cdr)) * (self.params['rate_sp_cure' + organ] + self.params['rate_tb_mortality' + organ] + mu)
 
     def process_organ_proportions(self):
         self.params['perc_smearpos'] = 100. * self.scale_up_functions_current_time['sp_prop']
