@@ -250,30 +250,18 @@ class Individual:
         else:
             organ_for_natural_history = '_closed_tb'
 
-        if params['new_tbnh_parameters']:
-            t_to_sp_cure = round(365.25 * random.exponential(scale=1. / params['rate_sp_cure' +
-                                                                               organ_for_natural_history]))
-            t_to_tb_death = round(365.25 * random.exponential(scale=1. / params['rate_tb_mortality' +
-                                                                                organ_for_natural_history]))
-            if t_to_sp_cure <= t_to_tb_death:
-                sp_cure = 1
-                t_s = t_to_sp_cure
-                t_m = float('inf')
-            else:
-                sp_cure = 0
-                t_s = float('inf')
-                t_m = t_to_tb_death
+        t_to_sp_cure = round(365.25 * random.exponential(scale=1. / params['rate_sp_cure' +
+                                                                           organ_for_natural_history]))
+        t_to_tb_death = round(365.25 * random.exponential(scale=1. / params['rate_tb_mortality' +
+                                                                            organ_for_natural_history]))
+        if t_to_sp_cure <= t_to_tb_death:
+            sp_cure = 1
+            t_s = t_to_sp_cure
+            t_m = float('inf')
         else:
-            sp_cure = random.binomial(n=1, p=params['perc_sp_cure' + organ_for_natural_history]/100.)
-            if sp_cure == 1:
-                t_s = round(365.25 * random.exponential(scale=1. / params['lambda_timeto_sp_or_death' +
-                                                                          organ_for_natural_history]))
-                t_m = float('inf')  # infinite
-            else:
-                t_s = float('inf')  # infinite
-                t_m = round(365.25 * random.exponential(scale=1. / (params['lambda_timeto_sp_or_death' +
-                                                                           organ_for_natural_history] *
-                                                                    params['tb_mortality_multiplier'])))
+            sp_cure = 0
+            t_s = float('inf')
+            t_m = t_to_tb_death
 
         # Random generation of programmatic durations
         [t_d, t_t] = random.exponential(scale=[365.25/params['lambda_timeto_detection' + organ_for_natural_history],
