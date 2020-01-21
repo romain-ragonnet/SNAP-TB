@@ -947,8 +947,8 @@ class Model:
         This program may be targeted at a specific subgroup.
         return: a list of ids
         """
-        n_screened_individuals = round((self.params['mass_pt_screening_rate'] / 100.) * self.population \
-                                       * self.params['time_step'] / 365.25)
+        n_screened_individuals = int(round((self.params['mass_pt_screening_rate'] / 100.) * self.population \
+                                       * self.params['time_step'] / 365.25))
         if self.params['subgroup_for_mass_pt'] == 'all':  # screening applies to all
             screened_individuals = np.random.choice(self.individuals.keys(), n_screened_individuals, replace=False)
         else:   # screening applies to specific groups
