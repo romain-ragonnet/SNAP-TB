@@ -1423,6 +1423,7 @@ class Model:
         for detection_time in [d for d in self.programmed_events['detection'].keys() if d <= self.time]:
             for ind_id in self.programmed_events['detection'][detection_time]:
                 self.detect_individual(ind_id)
+                self.trigger_hh_based_acf(ind_id)
             del self.programmed_events['detection'][detection_time]
 
     def detect_individual(self, ind_id):
@@ -1431,6 +1432,37 @@ class Model:
                                                                            self.params['duration_burning_tb'] +
                                                                            self.params['intervention_start_delay'] ) * 365.25:
             self.trigger_detection_linked_pt(ind_id)
+
+    def trigger_hh_based_acf(self, ind_id):
+        shall_we_trigger = int(np.random.binomial(n=1, p=self.params['hh_based_acf_coverage_perc'] / 100.))
+        if shall_we_trigger == 1:
+            hh_contact_ids = self.get_other_household_members(ind_id)
+            for c_id in hh_contact_ids:
+                if self.individuals[c_id].active_tb:
+                    # remove potential programmed detection
+                    if 'detection' in self.individuals[ind_id].programmed.keys():
+                        for date in self.programmed_events['detection'].keys():
+                            if ind_id in self.programmed_events['detection'][date]:
+                                self.programmed_events['detection'][date] = [indiv for indiv in
+                                                                            self.programmed_events['detection'][date] if
+                                                                            indiv != ind_id]
+                    tb_outcome = self.individuals[ind_id].overwrite_tb_outcome_after_acf_detection(time=self.time,
+                                                                                                   params=self.params,
+                                                                tx_success_prop=self.scale_up_functions_current_time['treatment_success_prop'])
+
+                    if 'recovery' in tb_outcome.keys():
+                        # remove previously scheduled recovery
+                        for date in self.programmed_events['recovery'].keys():
+                            if ind_id in self.programmed_events['recovery'][date]:
+                                self.programmed_events['recovery'][date] = [indiv for indiv in
+                                                                            self.programmed_events['recovery'][date] if
+                                                                            indiv != ind_id]
+
+                    if 'dr_amplification' in tb_outcome.keys():
+                        self.tb_prevalence_ds -= 1  # should be improved in the future as dr_amplification should occur later at treatment
+                        self.tb_prevalence_mdr += 1
+
+                    self.update_programmed_events(tb_outcome, ind_id)
 
     def trigger_detection_linked_pt(self, ind_id):
         """

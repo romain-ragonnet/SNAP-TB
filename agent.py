@@ -317,6 +317,30 @@ class Individual:
         else:
             return {'time_active': self.programmed['death'] - time}
 
+    def overwrite_tb_outcome_after_acf_detection(self, time, params, tx_success_prop):
+        self.detect_tb()
+        # work out treatment outcome
+        t_t = round(random.exponential(scale=params['time_to_treatment']))
+
+        self.programmed['detection'] = time
+        to_be_returned = {}  #'detection': self.programmed['detection']}
+        if time + t_t < self.programmed['death']:
+            strain_multiplier = 1.
+            if self.tb_strain == 'mdr':
+                strain_multiplier = params['perc_dst_coverage'] / 100.
+                strain_multiplier *= params['relative_treatment_success_rate_mdr']
+            tx_cure = random.binomial(n=1, p=tx_success_prop * strain_multiplier)
+            if tx_cure == 1:
+                if 'recovery' not in self.programmed.keys() or self.programmed['recovery'] > time + t_t:
+                    self.programmed['recovery'] = time + t_t
+                to_be_returned['recovery'] = self.programmed['recovery']
+            elif tx_cure == 0 and self.tb_strain == 'ds':  # there is a risk of DR amplification
+                ampli = random.binomial(n=1, p=params['perc_risk_amplification'] / 100.)
+                if ampli == 1:
+                    self.tb_strain = 'mdr'  # may be improved in the future as the amplification should occur later
+                    to_be_returned['dr_amplification'] = time + t_t
+        return to_be_returned
+
     def detect_tb(self):
         self.tb_detected = True
 
