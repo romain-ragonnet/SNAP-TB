@@ -1,5 +1,5 @@
 os
-numpy==1.14.1
+numpy==1.22.0
 math
 copy
 multiprocessing==0.70a1
@@ -11,7 +11,7 @@ time
 csv==1.0
 dill==0.2.9
 matplotlib==2.2.4
-numpy==1.14.1
+numpy==1.22.0
 scipy==1.0.0
 openpyxl==2.5.0
 pyDOE==0.3.8
